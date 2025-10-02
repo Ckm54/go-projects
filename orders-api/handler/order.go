@@ -113,10 +113,11 @@ func (h *Order) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	o, err := h.Repo.FindByID(r.Context(), orderID)
 	if errors.Is(err, order.ErrorNotExist) {
+		w.Write([]byte(fmt.Sprintf("failed to find by id: %v", err)))
 		w.WriteHeader(http.StatusNotFound)
 		return
 	} else if err != nil {
-		fmt.Println("failed to find by id:", err)
+		w.Write([]byte(fmt.Sprintf("failed to find by id: %v", err)))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

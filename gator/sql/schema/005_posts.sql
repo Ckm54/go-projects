@@ -1,0 +1,16 @@
+-- +goose Up
+CREATE TABLE posts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
+
+  title TEXT NOT NULL,
+  url TEXT UNIQUE NOT NULL,
+  description TEXT,
+  published_at TIMESTAMP WITHOUT TIME ZONE,
+
+  feed_id UUID NOT NULL REFERENCES feeds(id) ON DELETE CASCADE
+);
+
+-- +goose Down
+DROP TABLE posts;

@@ -2,7 +2,14 @@ package commands
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"html"
+	"log"
+	"time"
+
+	"github.com/ckm54/go-projects/gator/internal/database"
+	"github.com/google/uuid"
 )
 
 func scrapeFeeds(s *State) error {
@@ -24,8 +31,26 @@ func scrapeFeeds(s *State) error {
 	}
 
 	for _, item := range rss.Channel.Item {
-		fmt.Println("📰", item.Title)
+		publishedAt := parsePublishedTime(item.PubDate)
+		_, err := s.DB.CreatePost(context.Background(), database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       html.UnescapeString(item.Title),
+			Url:         item.Link,
+			Description: sql.NullString{String: html.UnescapeString(item.Description)},
+			PublishedAt: publishedAt,
+			FeedID:      feed.ID,
+		})
+
+		if err != nil {
+			if isUniqueValidation(err) {
+				continue
+			}
+			return fmt.Errorf("failed saving post: %w", err)
+		}
 	}
+	log.Printf("✅ fetched and stored posts from %s", feed.Name)
 
 	return nil
 }

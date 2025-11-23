@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/ckm54/go-projects/gator/internal/database"
@@ -12,14 +13,26 @@ import (
 )
 
 func HandlerAggregate(s *State, cmd Command) error {
-	feedUrl := "https://www.wagslane.dev/index.xml"
-	feed, err := fetchFeed(context.Background(), feedUrl)
-	if err != nil {
-		return err
+	if len(cmd.Args) != 1 {
+		return fmt.Errorf("usage: gator agg <duration> (e.g. 30s, 5m, 1h)")
 	}
 
-	fmt.Printf("%v", feed)
-	return nil
+	interval, err := time.ParseDuration(cmd.Args[0])
+	if err != nil {
+		return fmt.Errorf("invalid time duration: %w", err)
+	}
+
+	fmt.Printf("⏳ Collecting feeds every %s\n", interval)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		if err = scrapeFeeds(s); err != nil {
+			fmt.Println("⚠️", err)
+		}
+		<-ticker.C
+	}
 }
 
 func HandlerAddFeed(s *State, cmd Command, user database.User) error {
@@ -154,4 +167,36 @@ func getFeedByUrl(s *State, feedUrl string) (database.Feed, error) {
 	}
 
 	return feed, nil
+}
+
+func HandlerBrowse(s *State, cmd Command, user database.User) error {
+	limit := 2
+	if len(cmd.Args) == 1 {
+		parsed, err := strconv.Atoi(cmd.Args[0])
+		if err != nil || parsed < 1 {
+			return fmt.Errorf("invalid limit\nusage: gator browse [limit]")
+		}
+
+		limit = parsed
+	}
+
+	posts, err := s.DB.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit:  int32(limit),
+	})
+	if err != nil {
+		return err
+	}
+
+	if len(posts) == 0 {
+		fmt.Println("no posts yet - try running gator agg 1m")
+		return nil
+	}
+
+	for _, post := range posts {
+		fmt.Printf("\n📌 %s\n🔗 %s\n📰 %s\n", post.FeedName, post.Url, post.Title)
+	}
+
+	return nil
+
 }

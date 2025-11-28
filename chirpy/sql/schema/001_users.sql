@@ -1,0 +1,10 @@
+-- +goose Up
+CREATE TABLE users (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW() NOT NULL,
+  email TEXT UNIQUE NOT NULL
+);
+
+-- +goose Down
+DROP TABLE users;
